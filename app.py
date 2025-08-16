@@ -43,14 +43,22 @@ def upload_file():
     doc = request.files.get('book')
     if doc and allowed_file(doc.filename, ALLOWED_DOC_EXTENSIONS):
         try:
-            # ✅ Upload directly to GoFile (2025 API)
+            # ✅ Upload to GoFile (2025 API)
             resp = requests.post(
                 "https://api.gofile.io/upload",
-                files={"file": (doc.filename, doc.stream, doc.mimetype)}
+                files={"file": (doc.filename, doc.stream, doc.mimetype)},
+                headers={"Accept": "application/json"}
             )
-            result = resp.json()
 
-            if result["status"] == "ok":
+            print("DEBUG GoFile Response:", resp.text)  # 👈 Render logs me dikhega
+
+            try:
+                result = resp.json()
+            except Exception:
+                flash("⚠️ Error: GoFile ne JSON ke bajaye kuch aur return kiya. Logs check karo.")
+                return redirect('/')
+
+            if result.get("status") == "ok":
                 link = result["data"]["downloadPage"]
                 flash(f'✅ File uploaded successfully! <a href="{link}" target="_blank">Download Here</a>')
             else:
@@ -64,4 +72,4 @@ def upload_file():
 
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))  # ✅ Render ke liye
-    app.run(host="0.0.0.0", port=port, debug=False)
+    app.run(host="0.0.0.0", port=port, debug=True)
