@@ -28,6 +28,12 @@
       padding: 2rem;
       text-align: center;
     }
+    #result {
+      margin-top: 20px;
+      text-align: center;
+      font-size: 1.1rem;
+      color: lightgreen;
+    }
     .footer {
       padding: 2rem;
       text-align: center;
@@ -37,6 +43,31 @@
     .footer a {
       color: #00e0ff;
       text-decoration: none;
+    }
+    .btn {
+      background: #00e0ff;
+      color: #111;
+      border: none;
+      padding: 12px 18px;
+      border-radius: 8px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .btn:hover {
+      background: #00b8d4;
+      transform: translateY(-2px);
+    }
+    input[type="file"] {
+      padding: 10px;
+      border-radius: 8px;
+      background: rgba(255,255,255,0.1);
+    }
+    progress {
+      width: 80%;
+      height: 16px;
+      border-radius: 8px;
     }
   </style>
 </head>
@@ -57,18 +88,20 @@
   {% if is_admin %}
   <section class="upload-form">
     <h2>📤 Upload Book to GoFile</h2>
-    <form action="/upload" method="post" enctype="multipart/form-data">
-      <input type="file" name="book" required><br><br>
-      <button type="submit">Upload</button>
-    </form>
+    <input type="file" id="fileInput" /><br><br>
+    <button class="btn" onclick="uploadFile()">Upload</button>
+    <div style="margin-top:10px">
+      <progress id="bar" value="0" max="100" style="display:none"></progress>
+      <div id="percent" style="margin-top:8px;"></div>
+    </div>
+    <div id="result"></div>
+    <p style="opacity:0.8;margin-top:10px;">Tip: File directly GoFile par upload hogi. Server storage use nahi hoga.</p>
   </section>
   {% endif %}
 
   {% with messages = get_flashed_messages() %}
     {% if messages %}
-      <p style="text-align:center; color:lightgreen; font-size:1.1rem;">
-        {{ messages[0]|safe }}
-      </p>
+      <p style="text-align:center; color:lightgreen;">{{ messages[0] }}</p>
     {% endif %}
   {% endwith %}
 
@@ -77,5 +110,67 @@
     📢 Join our Telegram: 
     <a href="https://t.me/TEAM_RNA" target="_blank">@TEAM_RNA</a>
   </div>
+
+  <script>
+    async function uploadFile() {
+      const fileInput = document.getElementById("fileInput");
+      const result = document.getElementById("result");
+      const bar = document.getElementById("bar");
+      const percent = document.getElementById("percent");
+
+      result.textContent = "";
+      percent.textContent = "";
+
+      if (!fileInput.files.length) {
+        alert("Please select a file first!");
+        return;
+      }
+      const file = fileInput.files[0];
+
+      // Show progress UI
+      bar.style.display = "block";
+      bar.value = 0;
+      percent.textContent = "0%";
+      result.textContent = "⏳ Uploading... Please wait";
+
+      try {
+        // Use XHR to track progress
+        const formData = new FormData();
+        formData.append("file", file);
+
+        const xhr = new XMLHttpRequest();
+        xhr.open("POST", "https://api.gofile.io/upload");
+
+        xhr.upload.onprogress = function (e) {
+          if (e.lengthComputable) {
+            const prog = Math.round((e.loaded / e.total) * 100);
+            bar.value = prog;
+            percent.textContent = prog + "%";
+          }
+        };
+
+        xhr.onload = function () {
+          try {
+            const data = JSON.parse(xhr.responseText);
+            if (data.status === "ok") {
+              result.innerHTML = '✅ File uploaded! <a href="' + data.data.downloadPage + '" target="_blank">Download Here</a>';
+            } else {
+              result.textContent = "❌ Upload failed.";
+            }
+          } catch (err) {
+            result.textContent = "⚠️ Error parsing response. Raw: " + xhr.responseText.slice(0, 200);
+          }
+        };
+
+        xhr.onerror = function () {
+          result.textContent = "⚠️ Network error while uploading.";
+        };
+
+        xhr.send(formData);
+      } catch (err) {
+        result.textContent = "⚠️ Error: " + err;
+      }
+    }
+  </script>
 </body>
 </html>
