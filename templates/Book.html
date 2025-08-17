@@ -127,14 +127,13 @@
     }
     const file = fileInput.files[0];
 
-    // Show progress UI
     bar.style.display = "block";
     bar.value = 0;
     percent.textContent = "0%";
     result.textContent = "⏳ Uploading... Please wait";
 
     try {
-      // STEP 1: get server from GoFile
+      // STEP 1: get GoFile server
       const srvResp = await fetch("https://api.gofile.io/getServer");
       const srvData = await srvResp.json();
       if (srvData.status !== "ok") {
@@ -143,9 +142,10 @@
       }
       const server = srvData.data.server;
 
-      // STEP 2: upload to that server
+      // STEP 2: upload
       const formData = new FormData();
-      formData.append("file", file);
+      formData.append("file", file, file.name);  // filename bhi bhej do
+      // optional: formData.append("token", ""); // agar API token ho to
 
       const xhr = new XMLHttpRequest();
       xhr.open("POST", `https://${server}.gofile.io/uploadFile`);
@@ -160,6 +160,7 @@
 
       xhr.onload = function () {
         try {
+          console.log("RAW RESPONSE:", xhr.responseText);
           const data = JSON.parse(xhr.responseText);
           if (data.status === "ok") {
             result.innerHTML =
@@ -167,12 +168,11 @@
               data.data.downloadPage +
               '" target="_blank">Download Here</a>';
           } else {
-            result.textContent = "❌ Upload failed. " + xhr.responseText;
+            result.textContent = "❌ Upload failed: " + (data.status || "unknown error");
           }
         } catch (err) {
           result.textContent =
-            "⚠️ Error parsing response. Raw: " +
-            xhr.responseText.slice(0, 200);
+            "⚠️ Error: Raw response → " + xhr.responseText;
         }
       };
 
@@ -182,7 +182,7 @@
 
       xhr.send(formData);
     } catch (err) {
-      result.textContent = "⚠️ Error: " + err;
+      result.textContent = "⚠️ Exception: " + err;
     }
   }
 </script>
