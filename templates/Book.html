@@ -112,65 +112,77 @@
   </div>
 
   <script>
-    async function uploadFile() {
-      const fileInput = document.getElementById("fileInput");
-      const result = document.getElementById("result");
-      const bar = document.getElementById("bar");
-      const percent = document.getElementById("percent");
+  async function uploadFile() {
+    const fileInput = document.getElementById("fileInput");
+    const result = document.getElementById("result");
+    const bar = document.getElementById("bar");
+    const percent = document.getElementById("percent");
 
-      result.textContent = "";
-      percent.textContent = "";
+    result.textContent = "";
+    percent.textContent = "";
 
-      if (!fileInput.files.length) {
-        alert("Please select a file first!");
+    if (!fileInput.files.length) {
+      alert("Please select a file first!");
+      return;
+    }
+    const file = fileInput.files[0];
+
+    // Show progress UI
+    bar.style.display = "block";
+    bar.value = 0;
+    percent.textContent = "0%";
+    result.textContent = "⏳ Uploading... Please wait";
+
+    try {
+      // STEP 1: get server from GoFile
+      const srvResp = await fetch("https://api.gofile.io/getServer");
+      const srvData = await srvResp.json();
+      if (srvData.status !== "ok") {
+        result.textContent = "❌ Failed to fetch server.";
         return;
       }
-      const file = fileInput.files[0];
+      const server = srvData.data.server;
 
-      // Show progress UI
-      bar.style.display = "block";
-      bar.value = 0;
-      percent.textContent = "0%";
-      result.textContent = "⏳ Uploading... Please wait";
+      // STEP 2: upload to that server
+      const formData = new FormData();
+      formData.append("file", file);
 
-      try {
-        // Use XHR to track progress
-        const formData = new FormData();
-        formData.append("file", file);
+      const xhr = new XMLHttpRequest();
+      xhr.open("POST", `https://${server}.gofile.io/uploadFile`);
 
-        const xhr = new XMLHttpRequest();
-        xhr.open("POST", "https://api.gofile.io/uploadFile");
+      xhr.upload.onprogress = function (e) {
+        if (e.lengthComputable) {
+          const prog = Math.round((e.loaded / e.total) * 100);
+          bar.value = prog;
+          percent.textContent = prog + "%";
+        }
+      };
 
-        xhr.upload.onprogress = function (e) {
-          if (e.lengthComputable) {
-            const prog = Math.round((e.loaded / e.total) * 100);
-            bar.value = prog;
-            percent.textContent = prog + "%";
+      xhr.onload = function () {
+        try {
+          const data = JSON.parse(xhr.responseText);
+          if (data.status === "ok") {
+            result.innerHTML =
+              '✅ File uploaded! <a href="' +
+              data.data.downloadPage +
+              '" target="_blank">Download Here</a>';
+          } else {
+            result.textContent = "❌ Upload failed. " + xhr.responseText;
           }
-        };
+        } catch (err) {
+          result.textContent =
+            "⚠️ Error parsing response. Raw: " +
+            xhr.responseText.slice(0, 200);
+        }
+      };
 
-        xhr.onload = function () {
-          try {
-            const data = JSON.parse(xhr.responseText);
-            if (data.status === "ok") {
-              result.innerHTML = '✅ File uploaded! <a href="' + data.data.downloadPage + '" target="_blank">Download Here</a>';
-            } else {
-              result.textContent = "❌ Upload failed.";
-            }
-          } catch (err) {
-            result.textContent = "⚠️ Error parsing response. Raw: " + xhr.responseText.slice(0, 200);
-          }
-        };
+      xhr.onerror = function () {
+        result.textContent = "⚠️ Network error while uploading.";
+      };
 
-        xhr.onerror = function () {
-          result.textContent = "⚠️ Network error while uploading.";
-        };
-
-        xhr.send(formData);
-      } catch (err) {
-        result.textContent = "⚠️ Error: " + err;
-      }
+      xhr.send(formData);
+    } catch (err) {
+      result.textContent = "⚠️ Error: " + err;
     }
-  </script>
-</body>
-</html>
+  }
+</script>
